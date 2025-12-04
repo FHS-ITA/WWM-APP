@@ -2,138 +2,178 @@ import streamlit as st
 
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(
-    page_title="WWM Builder",
+    page_title="WWM Builder v2.0",
     page_icon="⚔️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- STILE CSS PERSONALIZZATO (Opzionale, per renderlo più carino) ---
-st.markdown("""
-<style>
-    .big-font { font-size:20px !important; }
-    .stMetric { background-color: #f0f2f6; padding: 10px; border-radius: 10px; }
-</style>
-""", unsafe_allow_html=True)
+# --- DATABASE DATI (Espandibile) ---
+# Qui è dove i tuoi amici possono aiutarti a raccogliere i dati veri!
+WEAPON_DATA = {
+    "Stormbreaker Spear": {
+        "role": "Tank",
+        "stat_prio": "Max HP",
+        "q_skill": "Storm Roar (Taunt + DR)",
+        "e_skill": "Thunder Shock (Vuln)",
+        "desc": "L'arma definitiva per l'aggro e la sopravvivenza."
+    },
+    "Thundercry Blade": {
+        "role": "Tank/DPS",
+        "stat_prio": "HP / Attack",
+        "q_skill": "Predator's Shield (Shield)",
+        "e_skill": "Rush Gale (Pull)",
+        "desc": "Ottima per scudi e controllo folla."
+    },
+    "Panacea Fan": {
+        "role": "Healer",
+        "stat_prio": "Healing Power",
+        "q_skill": "Healing Bloom (Single Heal)",
+        "e_skill": "Regen Aura (HoT)",
+        "desc": "Cure continue e supporto per il team."
+    },
+    "Soulshade Umbrella": {
+        "role": "Healer/Support",
+        "stat_prio": "Healing Power",
+        "q_skill": "Dew Shield (Shield)",
+        "e_skill": "Purify Wind (Cleanse)",
+        "desc": "Protezione burst e rimozione debuff."
+    },
+    "Galeforce Bow": {
+        "role": "DPS Ranged",
+        "stat_prio": "Crit / Attack",
+        "q_skill": "Piercing Shot (Dmg)",
+        "e_skill": "Rain of Arrows (AoE)",
+        "desc": "Danno sicuro dalla distanza."
+    },
+    "Shadow Daggers": {
+        "role": "DPS Melee",
+        "stat_prio": "Crit / Agility",
+        "q_skill": "Backstab (Crit)",
+        "e_skill": "Poison Coat (DoT)",
+        "desc": "Danno esplosivo ma rischioso."
+    },
+    "Wuji Sword": {
+        "role": "DPS Balanced",
+        "stat_prio": "Attack / Parry",
+        "q_skill": "Sword Qi (Ranged)",
+        "e_skill": "Deflect (Parry)",
+        "desc": "Equilibrio perfetto tra attacco e difesa."
+    }
+}
 
-# --- TITOLO ---
-st.title("⚔️ WWM Companion: Build & Combat Assistant")
-st.markdown("*Tool sperimentale per creare build e ottenere suggerimenti tattici.*")
+SETS_DATA = {
+    "Moonflare Set": {"type": "Tank", "bonus": "Scudo su parata (30%)"},
+    "Verdantia Set": {"type": "Healer", "bonus": "+15% Cure"},
+    "Rainwhisper Set": {"type": "Survival", "bonus": "+HP Massimi"},
+    "Lifeweaver Set": {"type": "Healer", "bonus": "Crit Heals x2"},
+    "Crimson Edge": {"type": "DPS", "bonus": "+20% Crit Dmg"},
+    "Windwalker": {"type": "DPS", "bonus": "+Attack Speed"}
+}
 
-# --- SIDEBAR (Opzioni) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configurazione")
-    st.write("Seleziona il tuo equipaggiamento:")
+    st.header("⚙️ Configurazione Eroe")
     
-    weapon_main = st.selectbox(
-        "Arma Principale", 
-        ["Stormbreaker Spear", "Panacea Fan", "Thundercry Blade", "Soulshade Umbrella"]
-    )
+    # Selezione Armi dalle chiavi del dizionario
+    weapon_list = list(WEAPON_DATA.keys())
     
-    weapon_sub = st.selectbox(
-        "Arma Secondaria", 
-        ["Thundercry Blade", "Soulshade Umbrella", "Stormbreaker Spear", "Panacea Fan"],
-        index=1 # Seleziona la seconda opzione di default
-    )
-    
-    armor_set = st.selectbox(
-        "Set Armatura", 
-        ["Moonflare Set (Tank)", "Verdantia Set (Healer)", "Rainwhisper Set (HP)", "Lifeweaver Set (Crit Heal)"]
-    )
+    w_main = st.selectbox("Arma Principale", weapon_list, index=0)
+    w_sub = st.selectbox("Arma Secondaria", weapon_list, index=1)
     
     st.divider()
-    st.subheader("Statistiche Attuali")
-    hp_base = st.number_input("Max HP", 5000, 100000, 35000, step=500)
-    atk_power = st.number_input("Attack / Heal Power", 100, 10000, 2500, step=50)
+    armor = st.selectbox("Set Armatura", list(SETS_DATA.keys()))
+    
+    st.divider()
+    st.subheader("Stats Attuali")
+    hp = st.slider("Max HP", 5000, 100000, 35000, 500)
+    atk = st.slider("Attack / Heal Power", 100, 10000, 2500, 50)
+    crit = st.slider("Crit Rate %", 0, 100, 15, 1)
 
-# --- CORPO PRINCIPALE ---
-col1, col2 = st.columns([1, 1.5]) # Colonna destra un po' più larga
+# --- LOGICA ---
+main_data = WEAPON_DATA[w_main]
+sub_data = WEAPON_DATA[w_sub]
+set_info = SETS_DATA[armor]
+
+# Determinazione Archetipo
+archetype = "Ibrido / Custom"
+if main_data['role'] == "Tank" and sub_data['role'] in ["Tank", "Tank/DPS"]:
+    archetype = "🛡️ MAIN TANK"
+elif "Healer" in main_data['role'] and "Healer" in sub_data['role']:
+    archetype = "🏥 PURE HEALER"
+elif "DPS" in main_data['role'] and "DPS" in sub_data['role']:
+    archetype = "⚔️ PURE DPS"
+
+# --- INTERFACCIA PRINCIPALE ---
+st.title(f"Analisi Build: {archetype}")
+st.markdown(f"**Setup:** {w_main} + {w_sub} | **Set:** {armor}")
+
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.subheader("📊 Analisi Build")
-    
-    # LOGICA DI RICONOSCIMENTO RUOLO
-    role = "Sconosciuto / Ibrido"
-    role_color = "gray"
-    
-    # Tank Logic
-    if "Spear" in weapon_main and "Blade" in weapon_sub:
-        role = "🛡️ TANK (Meta Build)"
-        role_color = "blue"
-        st.info(f"**Ruolo Rilevato:** {role}")
-        
-        # Calcoli specifici Tank
-        shield_val = int(hp_base * 0.25)
-        st.metric("Valore Scudo (Blade Q)", f"{shield_val} HP", "Basato sul 25% Max HP")
-        
-        if "Moonflare" in armor_set:
-            st.success("✅ **Sinergia Set:** Moonflare è perfetto per questa build!")
-        else:
-            st.warning("⚠️ **Consiglio:** Prova il Moonflare Set per massimizzare lo scudo.")
-
-    # Healer Logic
-    elif "Fan" in weapon_main and "Umbrella" in weapon_sub:
-        role = "🏥 HEALER (Meta Build)"
-        role_color = "green"
-        st.success(f"**Ruolo Rilevato:** {role}")
-        
-        # Calcoli specifici Healer
-        single_heal = int(atk_power * 1.2)
-        burst_heal = int(atk_power * 1.8)
-        st.metric("Cura Singola (Fan Q)", f"{single_heal} HP", "Moltiplicatore 1.2x")
-        st.metric("Burst Charge (Umbrella)", f"{burst_heal} HP", "Moltiplicatore 1.8x")
-        
-        if "Verdantia" in armor_set:
-            st.success("✅ **Sinergia Set:** Verdantia aumenta le tue cure del 15%.")
-    
-    else:
-        st.write(f"Build personalizzata: **{weapon_main}** + **{weapon_sub}**")
-        st.info("Questa combinazione non ha calcoli preimpostati nel database.")
+    st.subheader("Arma 1 (Main)")
+    st.info(f"**{w_main}**")
+    st.write(f"🎯 Ruolo: {main_data['role']}")
+    st.write(f"✨ Q: {main_data['q_skill']}")
+    st.write(f"⚡ E: {main_data['e_skill']}")
+    st.caption(main_data['desc'])
 
 with col2:
-    st.subheader("💡 Combat Assistant")
+    st.subheader("Arma 2 (Sub)")
+    st.success(f"**{w_sub}**")
+    st.write(f"🎯 Ruolo: {sub_data['role']}")
+    st.write(f"✨ Q: {sub_data['q_skill']}")
+    st.write(f"⚡ E: {sub_data['e_skill']}")
+    st.caption(sub_data['desc'])
+
+with col3:
+    st.subheader("🔢 Calcoli Teorici")
     
-    tab1, tab2 = st.tabs(["🔄 Rotazione", "📝 Checklist"])
-    
-    with tab1:
-        if "Tank" in role:
-            st.markdown("### 🛡️ Rotazione Aggro & Survival")
-            st.code("""
-1. [INGAGGIO] Spear Q (Storm Roar) -> Prendi Aggro
-2. [DEBUFF]   Spear E (Thunder Shock) -> Applica Vulnerability
-3. [SWITCH]   Cambia arma (Tasto T)
-4. [SCUDO]    Blade Q (Predator's Shield) -> Proteggiti
-5. [DANNO]    Blade Caricato -> Fai danno
-6. [PARATA]   Tieni Click Destro mentre aspetti i cooldown
-            """, language="text")
-            st.caption("Nota: Tieni sempre d'occhio il buff Vulnerability sul boss.")
+    # Calcoli Tank
+    if "Tank" in archetype:
+        shield = int(hp * 0.25)
+        eff_hp = int(hp * 1.4) # Considerando DR
+        st.metric("Scudo Max", f"{shield}", "Blade/Spear Skill")
+        st.metric("EHP (Effective HP)", f"{eff_hp}", "+40% DR active")
+        if set_info['type'] == "Tank":
+            st.write("✅ Bonus Set Attivo!")
+        else:
+            st.warning("⚠️ Set non ottimale per Tank")
             
-        elif "Healer" in role:
-            st.markdown("### 🏥 Rotazione Supporto")
-            st.code("""
-1. [BASE]     Fan Q (Healing Bloom) -> Cura chi serve
-2. [REGEN]    Fan E (Regeneration Aura) -> Cura nel tempo
-3. [RESOURCE] Attacca col ventaglio per rigenerare DEW
-4. [SWITCH]   Cambia arma se serve Burst Heal
-5. [BURST]    Umbrella Charge Lv3 -> Grande cura area
-            """, language="text")
+    # Calcoli Healer
+    elif "Healer" in archetype:
+        base_heal = int(atk * 1.2)
+        if set_info['type'] == "Healer":
+            base_heal = int(base_heal * 1.15)
+            st.write("✅ Bonus Set +15% applicato")
         
-        else:
-            st.write("Seleziona una combinazione nota (es. Spear + Blade) per vedere la rotazione suggerita.")
+        st.metric("Cura Base", f"{base_heal}", "Skill Q")
+        st.metric("Crit Heal", f"{int(base_heal * 2)}", f"{crit}% Chance")
+        
+    # Calcoli DPS
+    else:
+        dps_score = int(atk * (1 + (crit/100)))
+        st.metric("DPS Score", f"{dps_score}", "Stima grezza")
+        st.write("⚠️ I calcoli DPS sono approssimativi senza dati sui frame.")
 
-    with tab2:
-        st.write("Prima di iniziare il Boss:")
-        if "Tank" in role:
-            st.checkbox("Golden Bell Body Equipaggiato?", value=True)
-            st.checkbox("Cibo buff HP consumato?")
-            st.checkbox("Il Healer sa che stai per pullare?")
-        elif "Healer" in role:
-            st.checkbox("Risorsa DEW al massimo (100)?")
-            st.checkbox("Sei posizionato DIETRO il Tank?")
-            st.checkbox("Hai il tasto per il Target Lock pronto?")
-        else:
-            st.write("Nessuna checklist specifica disponibile.")
-
-# --- FOOTER ---
 st.divider()
-st.text("WWM Builder v0.1 - Creato con Streamlit e 'Antigravity'")
+
+# --- SUGGERITORE ROTAZIONE ---
+st.subheader("🔄 Rotazione Suggerita (Generata)")
+
+rotazione = []
+rotazione.append(f"1. Usa **{main_data['q_skill']}** per ingaggiare.")
+rotazione.append(f"2. Usa **{main_data['e_skill']}** per applicare effetti.")
+rotazione.append(f"3. **CAMBIO ARMA** (T)")
+rotazione.append(f"4. Scarica **{sub_data['q_skill']}**.")
+rotazione.append(f"5. Usa **{sub_data['e_skill']}** se disponibile.")
+
+if "Tank" in archetype:
+    rotazione.append("6. **PARATA** fino al reset dei cooldown.")
+elif "Healer" in archetype:
+    rotazione.append("6. **Attacchi Base** per rigenerare DEW.")
+else:
+    rotazione.append("6. Continua con attacchi base fino ai cooldown.")
+
+for passo in rotazione:
+    st.text(passo)
